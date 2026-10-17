@@ -1,0 +1,65 @@
+name: Python CI
+
+# Запускать при любом пуш (push) или пулл-реквесте (pull request) в ветку main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Проверка кода
+  check:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+    # 1. Скачивание кода из репозитория
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. Установка нужной версии Python
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip' # Ускорение: кэширование pip
+
+    # 3. Установка Poetry (если его еще нет в кэше)
+    - name: Install Poetry
+      uses: abatilo/actions-poetry@v2
+      with:
+        poetry-version: '1.8.3'
+
+    # 4. Установка зависимостей из poetry.lock
+    - name: Install dependencies
+      run: poetry install --no-interaction --no-ansi
+
+    # 5. Проверка типов (Mypy)
+    - name: Type checking with Mypy
+      run: poetry run mypy src/ --strict
+      # Если mypy не настроен строго, убери флаг --strict
+
+    # 6. Проверка стиля и линтинг (Ruff)
+    - name: Lint with Ruff
+      run: poetry run ruff check src/ --fix
+      # Флаг --fix автоматически исправляет простые ошибки форматирования
+
+    # 7. Форматирование (опционально, если не включено в Ruff)
+    # - name: Format with Ruff
+    #   run: poetry run ruff format src/
+
+    # 8. Запуск тестов (Pytest)
+    - name: Test with Pytest
+      run: poetry run pytest tests/ --cov=src/ --cov-report=xml
+      # --cov собирает отчет о покрытии кода тестами
+
+    # 9. Загрузка отчета о покрытии на Codecov (опционально, но полезно для портфолио)
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: coverage.xml
+        fail_ci_if_error: false
